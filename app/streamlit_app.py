@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# When deployed (e.g., Streamlit Community Cloud) with main file path `app/streamlit_app.py`,
+# Python's import path may not include the repository root. Add it explicitly so imports
+# like `from aeo import ...` work reliably.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import hashlib
 import json
 import uuid
@@ -11,16 +21,31 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from aeo import (
-    build_prompt,
-    compute_average_rank,
-    compute_share_of_voice_binary,
-    compute_visibility_by_provider,
-    detect_mentions_and_rank,
-    generate_variations,
-    normalize_and_resolve,
-    redirect_chain_json,
-)
+try:
+    from aeo import (
+        build_prompt,
+        compute_average_rank,
+        compute_share_of_voice_binary,
+        compute_visibility_by_provider,
+        detect_mentions_and_rank,
+        generate_variations,
+        normalize_and_resolve,
+        redirect_chain_json,
+    )
+except ModuleNotFoundError as e:
+    import os
+
+    root_listing: list[str] = []
+    try:
+        root_listing = sorted([p.name for p in _REPO_ROOT.iterdir()])
+    except Exception:
+        root_listing = ["<unable to list repo root>"]
+
+    raise ModuleNotFoundError(
+        f"{e}. This usually means Streamlit is running from a folder that doesn't include the repo root on sys.path, "
+        f"or the `aeo/` package was not pushed to GitHub. "
+        f"cwd={os.getcwd()} repo_root={_REPO_ROOT} repo_root_contents={root_listing} sys.path[0:5]={sys.path[0:5]}"
+    ) from e
 from llm import LLMRequest
 from llm.registry import available_clients
 from reporting.report_builder import build_markdown_report
